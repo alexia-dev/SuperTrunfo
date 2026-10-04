@@ -1,262 +1,291 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 
-namespace SuperTrunfoEstadosBrasil
+namespace SuperTrunfoEstadosBrasil;
+
+public class Carta
 {
-    public class Carta
-    {
-        public string Estado { get; set; }
-        public decimal Populacao { get; set; } // Em milhões
-        public decimal PIB { get; set; }       // Em bilhões R$
-        public decimal Area { get; set; }       // Em mil km²
-        public int PontosTuristicos { get; set; }
-        public decimal DensidadeDemografica { get; set; } // Hab/km²
-        public bool SuperTrunfo { get; set; }
+    public string Estado { get; }
+    public decimal Populacao { get; }
+    public decimal PIB { get; }
+    public decimal Area { get; }
+    public int PontosTuristicos { get; }
+    public decimal DensidadeDemografica { get; }
+    public bool SuperTrunfo { get; }
 
-        public Carta(string estado, decimal populacao, decimal pib, decimal area, 
-                    int pontosTuristicos, decimal densidade, bool superTrunfo = false)
+    public Carta(string estado, decimal populacao, decimal pib, decimal area, int pontosTuristicos, decimal densidade, bool superTrunfo = false)
+    {
+        Estado = estado;
+        Populacao = populacao;
+        PIB = pib;
+        Area = area;
+        PontosTuristicos = pontosTuristicos;
+        DensidadeDemografica = densidade;
+        SuperTrunfo = superTrunfo;
+    }
+}
+
+public static class Program
+{
+    static readonly Random Random = new();
+    static Queue<Carta> Jogador = new();
+    static Queue<Carta> Computador = new();
+    static int Vitorias;
+    static int Derrotas;
+    static int Empates;
+
+    public static void Main()
+    {
+        Console.Title = "Super Trunfo • Estados do Brasil";
+        while (true)
         {
-            Estado = estado;
-            Populacao = populacao;
-            PIB = pib;
-            Area = area;
-            PontosTuristicos = pontosTuristicos;
-            DensidadeDemografica = densidade;
-            SuperTrunfo = superTrunfo;
+            MostrarMenu();
+            switch (Console.ReadKey(true).Key)
+            {
+                case ConsoleKey.Enter:
+                case ConsoleKey.D1: NovoJogo(); Jogar(); break;
+                case ConsoleKey.D2: MostrarRegras(); break;
+                case ConsoleKey.D3: return;
+                default: Aviso("Escolha uma opção válida."); break;
+            }
         }
     }
 
-    class Program
+    static void MostrarMenu()
     {
-        static List<Carta> baralho;
-        static Queue<Carta> jogador;
-        static Queue<Carta> computador;
-        static Random random = new Random();
+        Limpar();
+        Titulo("🇧🇷 SUPER TRUNFO", "ESTADOS DO BRASIL");
+        Console.WriteLine("  ┌──────────────────────────────────────┐");
+        Console.WriteLine("  │  [1] ▶  Novo jogo                    │");
+        Console.WriteLine("  │  [2] ?   Como jogar                  │");
+        Console.WriteLine("  │  [3] ×   Sair                        │");
+        Console.WriteLine("  └──────────────────────────────────────┘");
+        Console.WriteLine();
+        Console.WriteLine($"  Histórico: {Vitorias} vitórias • {Derrotas} derrotas • {Empates} empates");
+        Console.Write("\n  > ");
+    }
 
-        static void Main(string[] args)
+    static void NovoJogo()
+    {
+        var cartas = new List<Carta>
         {
-            Console.Title = "Super Trunfo Estados do Brasil";
-            MostrarMenuPrincipal();
-        }
+            new("São Paulo",46.65m,2.38m,248.2m,150,166.23m,true),
+            new("Rio de Janeiro",17.46m,0.86m,43.8m,120,381.87m),
+            new("Minas Gerais",21.17m,0.65m,586.5m,90,35.76m),
+            new("Bahia",14.93m,0.31m,564.7m,80,26.03m),
+            new("Paraná",11.52m,0.46m,199.3m,70,57.85m),
+            new("Amazonas",4.21m,0.11m,1559.1m,40,2.67m),
+            new("Ceará",9.13m,0.17m,148.9m,60,60.67m),
+            new("Rio Grande do Sul",11.42m,0.48m,281.7m,75,40.37m),
+            new("Pernambuco",9.54m,0.25m,98.1m,85,97.26m),
+            new("Pará",8.12m,0.23m,1247.7m,55,6.52m),
+            new("Santa Catarina",7.61m,0.35m,95.7m,95,79.49m),
+            new("Goiás",7.06m,0.27m,340.1m,65,20.75m)
+        };
+        cartas = cartas.OrderBy(_ => Random.Next()).ToList();
+        Jogador = new Queue<Carta>(cartas.Take(cartas.Count / 2));
+        Computador = new Queue<Carta>(cartas.Skip(cartas.Count / 2));
+    }
 
-        static void MostrarMenuPrincipal()
+    static void Jogar()
+    {
+        bool jogadorEscolhe = true;
+        while (Jogador.Count > 0 && Computador.Count > 0)
         {
-            while (true)
+            Limpar();
+            Cabecalho();
+            var sua = Jogador.Peek();
+            var rival = Computador.Peek();
+
+            MostrarCarta(sua);
+            Console.WriteLine();
+            Console.WriteLine("  🤖 CARTA DO COMPUTADOR");
+            Console.WriteLine("  ╭──────────────────────────────────╮");
+            Console.WriteLine("  │             ??????               │");
+            Console.WriteLine("  │      escolha seu atributo!       │");
+            Console.WriteLine("  ╰──────────────────────────────────╯\n");
+
+            int atributo = EscolherAtributo(jogadorEscolhe);
+            int resultado = Comparar(sua, rival, atributo);
+
+            Limpar();
+            Cabecalho();
+            MostrarDuelo(sua, rival, atributo, resultado);
+
+            var suaCarta = Jogador.Dequeue();
+            var rivalCarta = Computador.Dequeue();
+
+            if (resultado > 0)
             {
-                Console.Clear();
-                Console.WriteLine("🇧🇷 SUPER TRUNFO ESTADOS BRASIL 🇧🇷");
-                Console.WriteLine("====================================");
-                Console.WriteLine("1 - Iniciar Novo Jogo");
-                Console.WriteLine("2 - Ver Regras");
-                Console.WriteLine("3 - Sair");
-                Console.Write("\nEscolha: ");
-
-                switch (Console.ReadLine())
-                {
-                    case "1":
-                        InicializarJogo();
-                        IniciarJogo();
-                        break;
-                    case "2":
-                        MostrarRegras();
-                        break;
-                    case "3":
-                        Environment.Exit(0);
-                        break;
-                    default:
-                        Console.WriteLine("Opção inválida!");
-                        Thread.Sleep(1000);
-                        break;
-                }
+                Jogador.Enqueue(suaCarta);
+                Jogador.Enqueue(rivalCarta);
+                Vitorias++;
+                jogadorEscolhe = true;
+                Mensagem("★ VOCÊ LEVOU A RODADA!", ConsoleColor.Green);
             }
-        }
-
-        static void InicializarJogo()
-        {
-            baralho = new List<Carta>
+            else if (resultado < 0)
             {
-                new Carta("São Paulo", 46.65m, 2.38m, 248.2m, 150, 166.23m, true),
-                new Carta("Rio de Janeiro", 17.46m, 0.86m, 43.8m, 120, 381.87m),
-                new Carta("Minas Gerais", 21.17m, 0.65m, 586.5m, 90, 35.76m),
-                new Carta("Bahia", 14.93m, 0.31m, 564.7m, 80, 26.03m),
-                new Carta("Paraná", 11.52m, 0.46m, 199.3m, 70, 57.85m),
-                new Carta("Amazonas", 4.21m, 0.11m, 1559.1m, 40, 2.67m),
-                new Carta("Ceará", 9.13m, 0.17m, 148.9m, 60, 60.67m),
-                new Carta("Rio Grande do Sul", 11.42m, 0.48m, 281.7m, 75, 40.37m)
-            };
-
-            EmbaralharCartas();
-            DistribuirCartas();
-        }
-
-        static void EmbaralharCartas()
-        {
-            baralho = baralho.OrderBy(c => random.Next()).ToList();
-        }
-
-        static void DistribuirCartas()
-        {
-            jogador = new Queue<Carta>(baralho.Take(baralho.Count / 2));
-            computador = new Queue<Carta>(baralho.Skip(baralho.Count / 2));
-        }
-
-        static void MostrarRegras()
-        {
-            Console.Clear();
-            Console.WriteLine("=== REGRAS DO JOGO ===");
-            Console.WriteLine("1. Cada jogador recebe metade do baralho de estados");
-            Console.WriteLine("2. Escolha um atributo para comparar");
-            Console.WriteLine("3. Atributos com MAIOR valor vencem: População, PIB, Área, Pontos Turísticos");
-            Console.WriteLine("4. Atributo com MENOR valor vence: Densidade Demográfica");
-            Console.WriteLine("5. A carta Super Trunfo (São Paulo) vence qualquer outra");
-            Console.WriteLine("6. O perdedor da rodada entrega sua carta ao vencedor");
-            Console.WriteLine("\nPressione qualquer tecla para voltar...");
-            Console.ReadKey();
-        }
-
-        static void IniciarJogo()
-        {
-            while (jogador.Count > 0 && computador.Count > 0)
-            {
-                Console.Clear();
-                MostrarPlacar();
-                
-                Carta cartaJogador = jogador.Peek();
-                Carta cartaComputador = computador.Peek();
-
-                Console.WriteLine("\nSua carta atual:");
-                MostrarDetalhesCarta(cartaJogador);
-
-                int atributo = MostrarMenuAtributos();
-                int resultado = CompararCartas(cartaJogador, cartaComputador, atributo);
-
-                Console.WriteLine("\nCarta do Computador:");
-                MostrarDetalhesCarta(cartaComputador);
-                MostrarComparacaoAtributos(cartaJogador, cartaComputador, atributo);
-                ProcessarResultadoRodada(resultado);
-
-                Console.WriteLine("\nPressione qualquer tecla para continuar...");
-                Console.ReadKey();
-            }
-
-            MostrarResultadoFinal();
-        }
-
-        static void MostrarDetalhesCarta(Carta carta)
-        {
-            Console.WriteLine($"\nEstado: {carta.Estado}");
-            Console.WriteLine($"1. População: {carta.Populacao} milhões");
-            Console.WriteLine($"2. PIB: R${carta.PIB} bilhões");
-            Console.WriteLine($"3. Área: {carta.Area} mil km²");
-            Console.WriteLine($"4. Pontos Turísticos: {carta.PontosTuristicos}");
-            Console.WriteLine($"5. Densidade Demográfica: {carta.DensidadeDemografica} hab/km²");
-            if (carta.SuperTrunfo) Console.WriteLine("🌟 SUPER TRUNFO 🌟");
-        }
-
-        static int MostrarMenuAtributos()
-        {
-            int opcao;
-            do
-            {
-                Console.WriteLine("\nEscolha o atributo:");
-                Console.WriteLine("1 - População");
-                Console.WriteLine("2 - PIB");
-                Console.WriteLine("3 - Área");
-                Console.WriteLine("4 - Pontos Turísticos");
-                Console.WriteLine("5 - Densidade Demográfica");
-                Console.Write("Opção: ");
-            } while (!int.TryParse(Console.ReadLine(), out opcao) || opcao < 1 || opcao > 5);
-
-            return opcao;
-        }
-
-        static int CompararCartas(Carta jogador, Carta computador, int atributo)
-        {
-            if (jogador.SuperTrunfo && !computador.SuperTrunfo) return 1;
-            if (!jogador.SuperTrunfo && computador.SuperTrunfo) return -1;
-
-            switch (atributo)
-            {
-                case 1: return jogador.Populacao.CompareTo(computador.Populacao);
-                case 2: return jogador.PIB.CompareTo(computador.PIB);
-                case 3: return jogador.Area.CompareTo(computador.Area);
-                case 4: return jogador.PontosTuristicos.CompareTo(computador.PontosTuristicos);
-                case 5: return computador.DensidadeDemografica.CompareTo(jogador.DensidadeDemografica); // Menor valor ganha
-                default: return 0;
-            }
-        }
-
-        static void MostrarComparacaoAtributos(Carta jogador, Carta computador, int atributo)
-        {
-            string[] atributos = { 
-                "População (maior ganha)", 
-                "PIB (maior ganha)", 
-                "Área (maior ganha)", 
-                "Pontos Turísticos (maior ganha)", 
-                "Densidade Demográfica (menor ganha)" 
-            };
-
-            Console.WriteLine($"\nComparando {atributos[atributo-1]}:");
-            Console.WriteLine($"Jogador: {ObterValorAtributo(jogador, atributo)}");
-            Console.WriteLine($"Computador: {ObterValorAtributo(computador, atributo)}");
-        }
-
-        static string ObterValorAtributo(Carta carta, int atributo)
-        {
-            return atributo switch
-            {
-                1 => $"{carta.Populacao} milhões",
-                2 => $"R$ {carta.PIB} bilhões",
-                3 => $"{carta.Area} mil km²",
-                4 => $"{carta.PontosTuristicos} pontos",
-                5 => $"{carta.DensidadeDemografica} hab/km²",
-                _ => "Atributo inválido"
-            };
-        }
-
-        static void ProcessarResultadoRodada(int resultado)
-        {
-            switch (resultado)
-            {
-                case 1:
-                    Console.WriteLine("\n✅ Você venceu esta rodada!");
-                    jogador.Enqueue(computador.Dequeue());
-                    jogador.Enqueue(jogador.Dequeue());
-                    break;
-                case -1:
-                    Console.WriteLine("\n❌ Computador venceu esta rodada!");
-                    computador.Enqueue(jogador.Dequeue());
-                    computador.Enqueue(computador.Dequeue());
-                    break;
-                default:
-                    Console.WriteLine("\n⚖ Empate! As cartas voltam para os baralhos.");
-                    jogador.Enqueue(jogador.Dequeue());
-                    computador.Enqueue(computador.Dequeue());
-                    break;
-            }
-        }
-
-        static void MostrarPlacar()
-        {
-            Console.WriteLine($"📊 Placar: Jogador {jogador.Count} x {computador.Count} Computador");
-            Console.WriteLine($"📚 Cartas restantes: {jogador.Count + computador.Count}");
-        }
-
-        static void MostrarResultadoFinal()
-        {
-            Console.Clear();
-            if (jogador.Count == 0)
-            {
-                Console.WriteLine("😞 Derrota! O computador venceu o jogo!");
+                Computador.Enqueue(rivalCarta);
+                Computador.Enqueue(suaCarta);
+                Derrotas++;
+                jogadorEscolhe = false;
+                Mensagem("◆ O COMPUTADOR LEVOU A RODADA!", ConsoleColor.Red);
             }
             else
             {
-                Console.WriteLine("🎉 Parabéns! Você venceu o jogo!");
+                Jogador.Enqueue(suaCarta);
+                Computador.Enqueue(rivalCarta);
+                Empates++;
+                Mensagem("◇ EMPATE — as cartas voltaram!", ConsoleColor.Yellow);
             }
-            Console.WriteLine("\nPressione qualquer tecla para voltar ao menu...");
-            Console.ReadKey();
+
+            Console.WriteLine("\n  Pressione qualquer tecla para continuar...");
+            Console.ReadKey(true);
+        }
+
+        Limpar();
+        Titulo(Jogador.Count > 0 ? "🏆 VITÓRIA!" : "💥 FIM DE JOGO", "Super Trunfo");
+        Console.WriteLine(Jogador.Count > 0 ? "  Você conquistou todas as cartas!" : "  O computador ficou com o baralho inteiro.");
+        Console.WriteLine("\n  Pressione qualquer tecla para voltar ao menu.");
+        Console.ReadKey(true);
+    }
+
+    static int EscolherAtributo(bool jogadorEscolhe)
+    {
+        if (!jogadorEscolhe)
+        {
+            int escolha = Random.Next(1, 6);
+            Console.WriteLine($"  🤖 Computador escolheu: {NomeAtributo(escolha)}");
+            System.Threading.Thread.Sleep(650);
+            return escolha;
+        }
+
+        Console.WriteLine("  ESCOLHA O ATRIBUTO");
+        Console.WriteLine("  ─────────────────────────");
+        Console.WriteLine("  [1] População          ↑ maior");
+        Console.WriteLine("  [2] PIB                ↑ maior");
+        Console.WriteLine("  [3] Área               ↑ maior");
+        Console.WriteLine("  [4] Pontos turísticos  ↑ maior");
+        Console.WriteLine("  [5] Densidade          ↓ menor");
+        Console.Write("\n  > ");
+
+        while (true)
+        {
+            if (int.TryParse(Console.ReadLine(), out int valor) && valor is >= 1 and <= 5)
+                return valor;
+            Console.Write("  Escolha 1–5: ");
         }
     }
+
+    static int Comparar(Carta a, Carta b, int atributo)
+    {
+        if (a.SuperTrunfo && !b.SuperTrunfo) return 1;
+        if (!a.SuperTrunfo && b.SuperTrunfo) return -1;
+        if (a.SuperTrunfo && b.SuperTrunfo) return 0;
+
+        return atributo switch
+        {
+            1 => a.Populacao.CompareTo(b.Populacao),
+            2 => a.PIB.CompareTo(b.PIB),
+            3 => a.Area.CompareTo(b.Area),
+            4 => a.PontosTuristicos.CompareTo(b.PontosTuristicos),
+            5 => b.DensidadeDemografica.CompareTo(a.DensidadeDemografica),
+            _ => 0
+        };
+    }
+
+    static void MostrarDuelo(Carta a, Carta b, int atributo, int resultado)
+    {
+        Console.WriteLine("  ╔══════════════════════════════════════════════════╗");
+        Console.WriteLine($"  ║ {a.Estado,-22} VS {b.Estado,-22} ║");
+        Console.WriteLine("  ╚══════════════════════════════════════════════════╝\n");
+        Console.WriteLine($"  ⚔ {NomeAtributo(atributo)}");
+        Console.WriteLine($"  VOCÊ       {Valor(a, atributo)}");
+        Console.WriteLine($"  COMPUTADOR {Valor(b, atributo)}\n");
+
+        if (resultado > 0) Mensagem("  ★ VOCÊ VENCEU!", ConsoleColor.Green);
+        else if (resultado < 0) Mensagem("  ◆ COMPUTADOR VENCEU!", ConsoleColor.Red);
+        else Mensagem("  ◇ EMPATE!", ConsoleColor.Yellow);
+    }
+
+    static void MostrarCarta(Carta c)
+    {
+        Console.WriteLine("  ╭──────────────────────────────────╮");
+        Console.WriteLine($"  │ {(c.SuperTrunfo ? "★ SUPER TRUNFO ★" : "        SUA CARTA"),-32} │");
+        Console.WriteLine("  ├──────────────────────────────────┤");
+        Console.WriteLine($"  │ {c.Estado,-32} │");
+        Console.WriteLine("  ├──────────────────────────────────┤");
+        Console.WriteLine($"  │ População          {c.Populacao,8} mi │");
+        Console.WriteLine($"  │ PIB                {c.PIB,8} bi │");
+        Console.WriteLine($"  │ Área               {c.Area,8} mil │");
+        Console.WriteLine($"  │ Turismo            {c.PontosTuristicos,8} pts │");
+        Console.WriteLine($"  │ Densidade          {c.DensidadeDemografica,8} hab │");
+        Console.WriteLine("  ╰──────────────────────────────────╯");
+    }
+
+    static string Valor(Carta c, int a) => a switch
+    {
+        1 => $"{c.Populacao} mi",
+        2 => $"R$ {c.PIB} bi",
+        3 => $"{c.Area} mil km²",
+        4 => $"{c.PontosTuristicos} pts",
+        5 => $"{c.DensidadeDemografica} hab/km²",
+        _ => "-"
+    };
+
+    static string NomeAtributo(int a) => a switch
+    {
+        1 => "População",
+        2 => "PIB",
+        3 => "Área",
+        4 => "Pontos turísticos",
+        5 => "Densidade demográfica",
+        _ => "-"
+    };
+
+    static void MostrarRegras()
+    {
+        Limpar();
+        Titulo("📖 COMO JOGAR", "Super Trunfo");
+        Console.WriteLine("  • Você recebe metade do baralho.");
+        Console.WriteLine("  • Escolha um atributo da sua carta.");
+        Console.WriteLine("  • População, PIB, área e turismo: MAIOR vence.");
+        Console.WriteLine("  • Densidade: MENOR vence.");
+        Console.WriteLine("  • ★ Super Trunfo ★ vence cartas comuns.");
+        Console.WriteLine("  • Quem conquistar todas as cartas ganha.");
+        Console.WriteLine("\n  Pressione qualquer tecla...");
+        Console.ReadKey(true);
+    }
+
+    static void Cabecalho()
+    {
+        Console.WriteLine($"  🇧🇷 SUPER TRUNFO       Você {Jogador.Count}  ×  {Computador.Count} CPU");
+        Console.WriteLine("  ─────────────────────────────────────────────────");
+    }
+
+    static void Titulo(string a, string b)
+    {
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine($"\n  {a}");
+        Console.ForegroundColor = ConsoleColor.Magenta;
+        Console.WriteLine($"  {b}");
+        Console.ResetColor();
+        Console.WriteLine();
+    }
+
+    static void Mensagem(string texto, ConsoleColor cor)
+    {
+        Console.ForegroundColor = cor;
+        Console.WriteLine($"\n  {texto}");
+        Console.ResetColor();
+    }
+
+    static void Aviso(string texto)
+    {
+        Mensagem($"⚠ {texto}", ConsoleColor.Yellow);
+        System.Threading.Thread.Sleep(500);
+    }
+
+    static void Limpar() => Console.Clear();
 }
